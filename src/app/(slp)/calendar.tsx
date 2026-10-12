@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import {
   Ionicons,
   MaterialCommunityIcons,
@@ -336,7 +337,7 @@ export default function SlpCalendarScreen() {
                         size="sm"
                         variant="primary"
                         leftIcon={<Ionicons name="videocam" size={16} color="#FFF" />}
-                        onPress={() => setActiveVideoModal(appt)}
+                        onPress={() => router.push(`/session/${appt.id}`)}
                         style={{ flex: 1.5 }}
                       />
                       <Button
@@ -546,11 +547,11 @@ export default function SlpCalendarScreen() {
                 variant="primary"
                 leftIcon={<Ionicons name="videocam" size={18} color="#FFF" />}
                 onPress={() => {
+                  const targetId = activeVideoModal?.id;
                   setActiveVideoModal(null);
-                  Alert.alert(
-                    'Teletherapy Room Active',
-                    'Clinician teletherapy room launched. Screen sharing and digital stimuli enabled.'
-                  );
+                  if (targetId) {
+                    router.push(`/session/${targetId}`);
+                  }
                 }}
                 style={{ flex: 1.5 }}
               />

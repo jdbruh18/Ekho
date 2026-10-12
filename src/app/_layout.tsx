@@ -26,6 +26,8 @@ export default function RootLayout() {
           <Stack.Screen name="(parent)" />
           <Stack.Screen name="(slp)" />
           <Stack.Screen name="(admin)" />
+          <Stack.Screen name="session/[id]" />
+          <Stack.Screen name="session/report-form" />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

@@ -6,6 +6,7 @@ import {
   MOCK_SLP_PROFILES,
   MOCK_CHILDREN,
   MOCK_APPOINTMENTS,
+  MOCK_SESSION_REPORTS,
 } from './mock-data';
 import {
   Profile,
@@ -13,6 +14,7 @@ import {
   ChildProfile,
   UserRole,
   Appointment,
+  SessionReport,
 } from '../types/database';
 import {
   UserSession,
@@ -23,6 +25,7 @@ import { generateUUID } from './uuid';
 
 const STORAGE_SESSION_KEY = '@slp_app_session_v1';
 const STORAGE_APPOINTMENTS_KEY = '@slp_app_appointments_v1';
+const STORAGE_SESSION_REPORTS_KEY = '@ekho_session_reports_v1';
 
 interface AuthContextType {
   session: UserSession | null;
@@ -51,6 +54,8 @@ interface AuthContextType {
   rescheduleAppointment: (id: string, newDate: string) => Promise<void>;
   acceptAppointmentRequest: (id: string) => Promise<void>;
   declineAppointmentRequest: (id: string) => Promise<void>;
+  sessionReports: SessionReport[];
+  saveSessionReport: (report: SessionReport) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeChild, setActiveChild] = useState<ChildProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
+  const [sessionReports, setSessionReports] = useState<SessionReport[]>(MOCK_SESSION_REPORTS);
 
   // Load existing session & appointments on mount
   useEffect(() => {
@@ -77,6 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedAppts = await AsyncStorage.getItem(STORAGE_APPOINTMENTS_KEY);
         if (storedAppts) {
           setAppointments(JSON.parse(storedAppts));
+        }
+
+        const storedReports = await AsyncStorage.getItem(STORAGE_SESSION_REPORTS_KEY);
+        if (storedReports) {
+          setSessionReports(JSON.parse(storedReports));
         }
       } catch (err) {
         console.warn('Failed to load data from storage', err);
@@ -592,6 +603,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const saveSessionReport = async (report: SessionReport) => {
+    const updatedReports = [report, ...sessionReports.filter((r) => r.id !== report.id)];
+    setSessionReports(updatedReports);
+    await AsyncStorage.setItem(STORAGE_SESSION_REPORTS_KEY, JSON.stringify(updatedReports));
+
+    // Mark corresponding appointment as completed
+    const updatedAppts = appointments.map((a) =>
+      a.id === report.appointment_id ? { ...a, status: 'completed' as const } : a
+    );
+    setAppointments(updatedAppts);
+    await AsyncStorage.setItem(STORAGE_APPOINTMENTS_KEY, JSON.stringify(updatedAppts));
+
+    if (isConfiguredSupabase) {
+      try {
+        await supabase.from('session_reports').upsert(report);
+        await supabase
+          .from('appointments')
+          .update({ status: 'completed' })
+          .eq('id', report.appointment_id);
+      } catch (err) {
+        console.log('Saved session report locally', err);
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -604,6 +640,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addChild,
         isLoading,
         appointments,
+        sessionReports,
+        saveSessionReport,
         signIn,
         signUpParent,
         signUpSlp,

@@ -22,7 +22,8 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../lib/auth-context';
-import { Appointment } from '../../types/database';
+import { Appointment, SessionReport } from '../../types/database';
+import { MOCK_SESSION_REPORTS } from '../../lib/mock-data';
 
 type TabType = 'upcoming' | 'completed' | 'cancelled';
 
@@ -45,6 +46,7 @@ const CANCELLATION_REASONS = [
 export default function ParentAppointmentsScreen() {
   const {
     appointments,
+    sessionReports,
     cancelAppointment,
     rescheduleAppointment,
   } = useAuth();
@@ -53,6 +55,7 @@ export default function ParentAppointmentsScreen() {
 
   // Modal States
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [selectedReport, setSelectedReport] = useState<SessionReport | null>(null);
   const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
@@ -83,7 +86,7 @@ export default function ParentAppointmentsScreen() {
   // Actions
   const handleOpenJoin = (appt: Appointment) => {
     setSelectedAppt(appt);
-    setJoinModalVisible(true);
+    router.push(`/session/${appt.id}`);
   };
 
   const handleOpenReschedule = (appt: Appointment) => {
@@ -134,6 +137,10 @@ export default function ParentAppointmentsScreen() {
 
   const handleOpenSoap = (appt: Appointment) => {
     setSelectedAppt(appt);
+    const rep =
+      sessionReports.find((r) => r.appointment_id === appt.id) ||
+      MOCK_SESSION_REPORTS[0];
+    setSelectedReport(rep);
     setSoapModalVisible(true);
   };
 
@@ -751,38 +758,45 @@ export default function ParentAppointmentsScreen() {
                 </Text>
                 <Text style={styles.soapMetaItem}>
                   Target Accuracy:{' '}
-                  <Text style={{ fontWeight: '700', color: Palette.success }}>78% (+13%)</Text>
+                  <Text style={{ fontWeight: '700', color: Palette.success }}>
+                    {selectedReport?.accuracy_percentage ?? 78}%
+                  </Text>
                 </Text>
               </View>
 
               <View style={styles.soapSection}>
-                <Text style={styles.soapSectionHeader}>S (Subjective):</Text>
+                <Text style={styles.soapSectionHeader}>Clinical Observations & SOAP Summary:</Text>
                 <Text style={styles.soapText}>
-                  Child arrived promptly for the teletherapy session with caregiver. High engagement and cooperative behavior observed throughout interactive phonological awareness games.
+                  {selectedReport?.clinical_notes ||
+                    'Child arrived promptly for the teletherapy session with caregiver. High engagement and cooperative behavior observed throughout interactive phonological awareness games.'}
                 </Text>
               </View>
 
-              <View style={styles.soapSection}>
-                <Text style={styles.soapSectionHeader}>O (Objective):</Text>
-                <Text style={styles.soapText}>
-                  • Target phoneme /s/ produced in word-initial position with 78% accuracy across 30 trials with moderate verbal/visual cueing.
-                  {'\n'}• Minimal pair contrast drills (/s/ vs /t/) completed with 85% discrimination accuracy.
-                </Text>
-              </View>
+              {selectedReport?.home_practice_instructions && (
+                <View style={styles.soapSection}>
+                  <Text style={styles.soapSectionHeader}>Home Practice Instructions for Caregiver:</Text>
+                  <Text style={styles.soapText}>
+                    {selectedReport.home_practice_instructions}
+                  </Text>
+                </View>
+              )}
 
-              <View style={styles.soapSection}>
-                <Text style={styles.soapSectionHeader}>A (Assessment):</Text>
-                <Text style={styles.soapText}>
-                  Noticeable reduction in stopping pattern for alveolar fricatives. Child demonstrated self-correction on 4 out of 10 misarticulations.
-                </Text>
-              </View>
-
-              <View style={styles.soapSection}>
-                <Text style={styles.soapSectionHeader}>P (Plan & Home Practice):</Text>
-                <Text style={styles.soapText}>
-                  Caregiver instructed on 5-minute daily &ldquo;Snake Sound&rdquo; flashcard routine. Continue weekly 45-min teletherapy targeting sentence-level transfer.
-                </Text>
-              </View>
+              {selectedReport?.home_practice_exercises &&
+                selectedReport.home_practice_exercises.length > 0 && (
+                  <View style={styles.soapSection}>
+                    <Text style={styles.soapSectionHeader}>Assigned Exercises:</Text>
+                    {selectedReport.home_practice_exercises.map((ex, idx) => (
+                      <View key={idx} style={{ marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: Palette.slate900 }}>
+                          • {ex.title} ({ex.target_frequency || 'Daily'})
+                        </Text>
+                        <Text style={{ fontSize: 12, color: Palette.slate600, marginLeft: 12 }}>
+                          {ex.description}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
               <View style={styles.soapSignOff}>
                 <Text style={styles.soapSignText}>

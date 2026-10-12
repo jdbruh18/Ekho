@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -212,12 +211,7 @@ export default function SlpDashboard() {
                 size="md"
                 variant="primary"
                 leftIcon={<Ionicons name="videocam" size={16} color="#FFF" />}
-                onPress={() =>
-                  Alert.alert(
-                    'Launch Teletherapy',
-                    'Connecting to secure HIPAA-compliant video room with Leo Watson...'
-                  )
-                }
+                onPress={() => router.push(`/session/${appt.id}`)}
                 style={{ flex: 1 }}
               />
               <Button
