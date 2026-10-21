@@ -22,6 +22,7 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { MOCK_SLP_PROFILES } from '../../lib/mock-data';
+import { formatINR } from '../../lib/currency';
 
 const ALL_SPECIALIZATIONS = [
   'Speech sound disorders',
@@ -35,8 +36,8 @@ const ALL_SPECIALIZATIONS = [
 ];
 
 const EXPERIENCE_OPTIONS = ['Any', '<3 yrs', '3-7 yrs', '8+ yrs'];
-const LANGUAGE_OPTIONS = ['English', 'Spanish', 'Mandarin', 'Hindi'];
-const FEE_OPTIONS = ['Any', '$50 - $80', '$80 - $110', '$110+'];
+const LANGUAGE_OPTIONS = ['Malayalam', 'Kannada', 'Hindi', 'English', 'Tamil', 'Telugu'];
+const FEE_OPTIONS = ['Any', 'Under ₹800', '₹800 – ₹1,300', '₹1,300+'];
 const AGE_GROUP_OPTIONS = [
   'Toddlers (0-3)',
   'Preschool (3-5)',
@@ -132,11 +133,10 @@ export default function FindSlpScreen() {
       return false;
     if (selectedExperience === '8+ yrs' && slp.years_of_experience < 8) return false;
 
-    // Fee filter
-    if (selectedFee === '$50 - $80' && (slp.hourly_rate < 50 || slp.hourly_rate > 80)) return false;
-    if (selectedFee === '$80 - $110' && (slp.hourly_rate < 80 || slp.hourly_rate > 110))
-      return false;
-    if (selectedFee === '$110+' && slp.hourly_rate < 110) return false;
+    // Fee filter (INR)
+    if (selectedFee === 'Under ₹800' && slp.hourly_rate >= 800) return false;
+    if (selectedFee === '₹800 – ₹1,300' && (slp.hourly_rate < 800 || slp.hourly_rate > 1300)) return false;
+    if (selectedFee === '₹1,300+' && slp.hourly_rate < 1300) return false;
 
     // Age groups filter
     if (selectedAgeGroups.length > 0 && slp.age_groups_treated) {
@@ -322,7 +322,7 @@ export default function FindSlpScreen() {
                 <View style={styles.feeCol}>
                   <Text style={styles.feeLabel}>CONSULTATION FEE</Text>
                   <Text style={styles.feeAmount}>
-                    ${slp.hourly_rate}
+                    {formatINR(slp.hourly_rate)}
                     <Text style={styles.feeUnit}> / session</Text>
                   </Text>
                 </View>
@@ -546,7 +546,7 @@ export default function FindSlpScreen() {
                 <View>
                   <Text style={styles.bookingName}>{bookingSlp.profile?.full_name}</Text>
                   <Text style={styles.bookingTitle}>{bookingSlp.title}</Text>
-                  <Text style={styles.bookingRate}>${bookingSlp.hourly_rate} / 45-min Session</Text>
+                  <Text style={styles.bookingRate}>{formatINR(bookingSlp.hourly_rate)} / 45-min Session</Text>
                 </View>
               </View>
 

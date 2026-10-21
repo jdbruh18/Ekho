@@ -24,6 +24,14 @@ import { Badge } from '../ui/Badge';
 import { SlpProfile, ChildProfile, Appointment } from '../../types/database';
 import { useAuth } from '../../lib/auth-context';
 import { generateUUID } from '../../lib/uuid';
+import { formatINR } from '../../lib/currency';
+
+const UPI_APPS = [
+  { id: 'gpay', label: 'Google Pay' },
+  { id: 'phonepe', label: 'PhonePe' },
+  { id: 'paytm', label: 'Paytm' },
+  { id: 'bhim', label: 'BHIM' },
+] as const;
 
 export interface PaymentModalProps {
   visible: boolean;
@@ -53,8 +61,9 @@ export function PaymentModal({
   const { session, bookAppointment } = useAuth();
 
   // Payment UI state
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('card');
-  const [upiId, setUpiId] = useState('parent@okaxis');
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('upi');
+  const [selectedUpiApp, setSelectedUpiApp] = useState<string>('gpay');
+  const [upiId, setUpiId] = useState('parent@oksbi');
   const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
   const [cardExpiry, setCardExpiry] = useState('08/28');
   const [cardCvv, setCardCvv] = useState('891');
@@ -62,9 +71,9 @@ export function PaymentModal({
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedRefCode, setGeneratedRefCode] = useState('');
 
-  // Fee calculation
-  const platformFee = Math.round(sessionFee * 0.08 * 100) / 100;
-  const totalAmount = Math.round((sessionFee + platformFee) * 100) / 100;
+  // Fee calculation (INR)
+  const platformFee = Math.round(sessionFee * 0.08);
+  const totalAmount = sessionFee + platformFee;
 
   const handlePayAndConfirm = async () => {
     setIsProcessing(true);
@@ -72,7 +81,7 @@ export function PaymentModal({
     // Simulate payment gateway roundtrip
     setTimeout(async () => {
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      const refCode = `TS-${randomSuffix}-V3`;
+      const refCode = `EK-${randomSuffix}-V5`;
       setGeneratedRefCode(refCode);
 
       const newAppt: Appointment = {
@@ -84,7 +93,7 @@ export function PaymentModal({
         duration_minutes: durationMinutes,
         status: 'scheduled',
         consultation_type: 'online',
-        meeting_link: `https://meet.slptherapy.app/session/${refCode.toLowerCase()}`,
+        meeting_link: `https://meet.ekho.app/session/${refCode.toLowerCase()}`,
         amount_paid: totalAmount,
         payment_status: 'paid',
         booking_reference: refCode,
@@ -104,7 +113,7 @@ export function PaymentModal({
   const handleAddToCalendar = () => {
     Alert.alert(
       'Calendar Event Added',
-      `45-min Teletherapy Consultation with ${slp.profile?.full_name} for ${child.first_name} has been synced to your device calendar with 15-minute reminders.`
+      `${durationMinutes}-min Teletherapy Consultation with ${slp.profile?.full_name} for ${child.first_name} has been synced to your device calendar with 15-minute reminders.`
     );
   };
 
@@ -189,16 +198,16 @@ export function PaymentModal({
                   <View style={styles.receiptRow}>
                     <Text style={styles.receiptField}>Amount Paid:</Text>
                     <Text style={[styles.receiptVal, { color: Palette.primaryDark }]}>
-                      ${totalAmount} (USD)
+                      {formatINR(totalAmount)}
                     </Text>
                   </View>
                   <View style={styles.receiptRow}>
                     <Text style={styles.receiptField}>Payment Method:</Text>
                     <Text style={styles.receiptVal}>
                       {selectedMethod === 'card'
-                        ? 'Credit Card (••4242)'
+                        ? 'Debit / Credit Card (••4242)'
                         : selectedMethod === 'upi'
-                        ? 'UPI Instant'
+                        ? `UPI · ${UPI_APPS.find((a) => a.id === selectedUpiApp)?.label ?? 'UPI'}`
                         : 'Net Banking'}
                     </Text>
                   </View>
@@ -290,18 +299,18 @@ export function PaymentModal({
                 <Card style={styles.breakdownCard} variant="outlined">
                   <View style={styles.feeRow}>
                     <Text style={styles.feeLabel}>Clinician Session Fee ({durationMinutes}m)</Text>
-                    <Text style={styles.feeValue}>${sessionFee.toFixed(2)}</Text>
+                    <Text style={styles.feeValue}>{formatINR(sessionFee)}</Text>
                   </View>
                   <View style={styles.feeRow}>
-                    <Text style={styles.feeLabel}>Platform Technology & HIPAA Fee (8%)</Text>
-                    <Text style={styles.feeValue}>${platformFee.toFixed(2)}</Text>
+                    <Text style={styles.feeLabel}>Platform Service Fee (8%)</Text>
+                    <Text style={styles.feeValue}>{formatINR(platformFee)}</Text>
                   </View>
 
                   <View style={styles.feeDivider} />
 
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total Due Now</Text>
-                    <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+                    <Text style={styles.totalValue}>{formatINR(totalAmount)}</Text>
                   </View>
                 </Card>
 
@@ -326,7 +335,7 @@ export function PaymentModal({
                         selectedMethod === 'card' && styles.methodTabTextActive,
                       ]}
                     >
-                      Credit Card
+                      Card
                     </Text>
                   </TouchableOpacity>
 
@@ -409,11 +418,22 @@ export function PaymentModal({
                   </Card>
                 ) : selectedMethod === 'upi' ? (
                   <Card style={styles.paymentInputCard} variant="outlined">
-                    <Text style={styles.inputTitle}>UPI VPA / Fast Checkout</Text>
+                    <Text style={styles.inputTitle}>Pay with UPI</Text>
                     <View style={styles.upiQuickRow}>
-                      <Badge label="Google Pay" variant="info" size="md" />
-                      <Badge label="PhonePe" variant="primary" size="md" />
-                      <Badge label="Paytm" variant="neutral" size="md" />
+                      {UPI_APPS.map((app) => (
+                        <TouchableOpacity
+                          key={app.id}
+                          onPress={() => setSelectedUpiApp(app.id)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: selectedUpiApp === app.id }}
+                        >
+                          <Badge
+                            label={app.label}
+                            variant={selectedUpiApp === app.id ? 'primary' : 'neutral'}
+                            size="md"
+                          />
+                        </TouchableOpacity>
+                      ))}
                     </View>
                     <TextInput
                       style={[styles.cardTextInput, { marginTop: 8 }]}
@@ -429,7 +449,7 @@ export function PaymentModal({
                   <Card style={styles.paymentInputCard} variant="outlined">
                     <Text style={styles.inputTitle}>Select Bank / Wallet</Text>
                     <View style={styles.bankGrid}>
-                      {['Chase Bank', 'Bank of America', 'Wells Fargo', 'Citibank'].map((b) => (
+                      {['State Bank of India', 'Canara Bank', 'Federal Bank', 'HDFC Bank'].map((b) => (
                         <View key={b} style={styles.bankPill}>
                           <Ionicons name="shield-checkmark" size={14} color={Palette.primary} />
                           <Text style={styles.bankName}>{b}</Text>
@@ -441,7 +461,7 @@ export function PaymentModal({
 
                 {/* Pay & Confirm CTA */}
                 <Button
-                  title={`Pay & Confirm Booking ($${totalAmount.toFixed(2)})`}
+                  title={`Pay & Confirm Booking (${formatINR(totalAmount)})`}
                   size="lg"
                   variant="primary"
                   leftIcon={<Ionicons name="lock-closed" size={16} color="#FFF" />}
