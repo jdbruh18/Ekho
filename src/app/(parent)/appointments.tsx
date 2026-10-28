@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -22,6 +21,8 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../lib/auth-context';
+import { useEngagement } from '../../lib/engagement-store';
+import { ReviewModal } from '../../components/ReviewModal';
 import { Appointment, SessionReport } from '../../types/database';
 import { MOCK_SESSION_REPORTS } from '../../lib/mock-data';
 
@@ -65,9 +66,8 @@ export default function ParentAppointmentsScreen() {
   // Form selections for modals
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState(RESCHEDULE_SLOTS[0]);
   const [cancellationReason, setCancellationReason] = useState(CANCELLATION_REASONS[0]);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { hasReviewed } = useEngagement();
 
   // Partitioned lists
   const upcomingList = appointments.filter(
@@ -146,21 +146,7 @@ export default function ParentAppointmentsScreen() {
 
   const handleOpenReview = (appt: Appointment) => {
     setSelectedAppt(appt);
-    setReviewRating(5);
-    setReviewComment('');
     setReviewModalVisible(true);
-  };
-
-  const handleSubmitReview = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setReviewModalVisible(false);
-      Alert.alert(
-        'Review Submitted!',
-        `Thank you for rating ${selectedAppt?.slp?.profile?.full_name || 'your clinician'} ${reviewRating} stars.`
-      );
-    }, 600);
   };
 
   const handleBookAgain = (appt: Appointment) => {
@@ -469,10 +455,16 @@ export default function ParentAppointmentsScreen() {
                         style={{ flex: 1 }}
                       />
                       <Button
-                        title="Review"
+                        title={hasReviewed(appt.id) ? 'Reviewed' : 'Review'}
                         size="sm"
-                        variant="secondary"
-                        leftIcon={<Ionicons name="star-outline" size={15} color="#FFF" />}
+                        variant={hasReviewed(appt.id) ? 'outline' : 'secondary'}
+                        leftIcon={
+                          <Ionicons
+                            name={hasReviewed(appt.id) ? 'star' : 'star-outline'}
+                            size={15}
+                            color={hasReviewed(appt.id) ? Palette.accent : '#FFF'}
+                          />
+                        }
                         onPress={() => handleOpenReview(appt)}
                         style={{ flex: 1 }}
                       />
@@ -830,83 +822,12 @@ export default function ParentAppointmentsScreen() {
       </Modal>
 
       {/* 5. REVIEW MODAL */}
-      <Modal
+      <ReviewModal
+        key={selectedAppt?.id ?? 'none'}
         visible={reviewModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setReviewModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={styles.reviewHeaderIcon}>
-                <Ionicons name="star" size={24} color={Palette.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>Leave Clinician Review</Text>
-                <Text style={styles.modalSubtitle}>Help other parents discover great speech care</Text>
-              </View>
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
-                <Ionicons name="close" size={24} color={Palette.slate500} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.starRow}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity
-                  key={star}
-                  onPress={() => setReviewRating(star)}
-                  style={styles.starBtn}
-                >
-                  <Ionicons
-                    name={star <= reviewRating ? 'star' : 'star-outline'}
-                    size={36}
-                    color={star <= reviewRating ? Palette.accent : Palette.slate300}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.ratingLabelText}>
-              {reviewRating === 5
-                ? 'Exceptional Clinical Care (5.0)'
-                : reviewRating === 4
-                ? 'Very Helpful & Engaging (4.0)'
-                : reviewRating === 3
-                ? 'Average Therapy Experience (3.0)'
-                : 'Needs Improvement'}
-            </Text>
-
-            <Text style={styles.feedbackInputLabel}>Your Feedback & Experience:</Text>
-            <TextInput
-              style={styles.feedbackInput}
-              multiline
-              numberOfLines={4}
-              placeholder="Describe how the clinician connected with your child and what progress you noticed..."
-              placeholderTextColor={Palette.slate400}
-              value={reviewComment}
-              onChangeText={setReviewComment}
-            />
-
-            <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                size="md"
-                variant="outline"
-                onPress={() => setReviewModalVisible(false)}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title={isSubmitting ? 'Submitting...' : 'Post Review'}
-                size="md"
-                variant="primary"
-                loading={isSubmitting}
-                onPress={handleSubmitReview}
-                style={{ flex: 1.5 }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+        appointment={selectedAppt}
+        onClose={() => setReviewModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

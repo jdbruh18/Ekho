@@ -22,6 +22,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { DisclaimerBanner } from '../../../components/DisclaimerBanner';
 import { MOCK_SLP_PROFILES } from '../../../lib/mock-data';
+import { useEngagement } from '../../../lib/engagement-store';
 
 const SAMPLE_SLOTS = [
   { day: 'Tomorrow', time: '10:00 AM - 10:45 AM', type: 'Video' },
@@ -34,7 +35,11 @@ export default function SlpDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   // Find SLP or fallback to first
-  const slp = MOCK_SLP_PROFILES.find((s) => s.id === id) || MOCK_SLP_PROFILES[0];
+  const baseSlp = MOCK_SLP_PROFILES.find((s) => s.id === id) || MOCK_SLP_PROFILES[0];
+  const { getSlpRating, threads } = useEngagement();
+  // Merge parent-submitted reviews into the displayed rating and review list.
+  const live = getSlpRating(baseSlp);
+  const slp = { ...baseSlp, rating: live.rating, total_reviews: live.totalReviews, reviews: live.reviews };
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(0);
 
   const handleBookAppointment = () => {
@@ -45,10 +50,15 @@ export default function SlpDetailScreen() {
   };
 
   const handleMessage = () => {
-    Alert.alert(
-      'Secure Messaging',
-      `A direct, HIPAA-compliant chat channel with ${slp.profile?.full_name} is being initiated.`
-    );
+    const thread = threads.find((t) => t.slpId === slp.id);
+    if (thread) {
+      router.push({ pathname: '/messages/[id]', params: { id: thread.id } });
+    } else {
+      Alert.alert(
+        'Secure Messaging',
+        `Messaging with ${slp.profile?.full_name} opens after your first booking is confirmed.`
+      );
+    }
   };
 
   return (

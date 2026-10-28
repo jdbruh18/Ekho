@@ -22,7 +22,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DisclaimerBanner } from '../../components/DisclaimerBanner';
 import { MOCK_CLINICS } from '../../lib/mock-data';
-import { Clinic } from '../../types/database';
+import { ClinicWithDistance, DEFAULT_USER_LOCATION, withDistances } from '../../lib/geo';
 
 const CLINIC_TYPES = [
   'All',
@@ -32,19 +32,34 @@ const CLINIC_TYPES = [
   'Child Development Center',
 ];
 
+const CITY_FILTERS = [
+  'All Cities',
+  'Mysuru',
+  'Bengaluru',
+  'Kochi',
+  'Thiruvananthapuram',
+  'Mangaluru',
+  'Kozhikode',
+];
+
+// Distances are computed once from each clinic's lat/long relative to the user's location.
+const CLINICS_WITH_DISTANCE = withDistances(MOCK_CLINICS);
+
 export default function ClinicsScreen() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedType, setSelectedType] = useState<string>('All');
+  const [selectedCity, setSelectedCity] = useState<string>('All Cities');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedClinic, setSelectedClinic] = useState<Clinic>(MOCK_CLINICS[0]);
+  const [selectedClinic, setSelectedClinic] = useState<ClinicWithDistance>(CLINICS_WITH_DISTANCE[0]);
 
-  const filteredClinics = MOCK_CLINICS.filter((c) => {
+  const filteredClinics = CLINICS_WITH_DISTANCE.filter((c) => {
     const matchesType = selectedType === 'All' || c.type === selectedType;
+    const matchesCity = selectedCity === 'All Cities' || c.city === selectedCity;
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.services.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesType && matchesSearch;
+    return matchesType && matchesCity && matchesSearch;
   });
 
   const handleCallClinic = (phone: string, name: string) => {
@@ -61,10 +76,10 @@ export default function ClinicsScreen() {
     ]);
   };
 
-  const handleGetDirections = (clinic: Clinic) => {
+  const handleGetDirections = (clinic: ClinicWithDistance) => {
     Alert.alert(
       'Navigation Directions',
-      `Opening driving/transit directions to ${clinic.name} (${clinic.address}). Distance: ${clinic.distance}.`,
+      `Opening directions to ${clinic.name} (${clinic.address}). Distance: ${clinic.distanceLabel}.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -167,6 +182,35 @@ export default function ClinicsScreen() {
             );
           })}
         </ScrollView>
+
+        {/* City / District Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.categoryPillsScroll, { marginTop: 6 }]}
+        >
+          {CITY_FILTERS.map((city) => {
+            const isSelected = selectedCity === city;
+            return (
+              <TouchableOpacity
+                key={city}
+                style={[styles.cityPill, isSelected && styles.cityPillActive]}
+                onPress={() => setSelectedCity(city)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Ionicons
+                  name={city === 'All Cities' ? 'globe-outline' : 'location-outline'}
+                  size={12}
+                  color={isSelected ? Palette.white : Palette.secondary}
+                />
+                <Text style={[styles.cityPillText, isSelected && styles.typePillTextActive]}>
+                  {city}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* CONTENT: MAP VIEW vs LIST VIEW */}
@@ -180,7 +224,7 @@ export default function ClinicsScreen() {
             <View style={styles.mapRoadV1} />
             <View style={styles.mapRoadV2} />
             <View style={styles.mapWaterArea}>
-              <Text style={styles.mapWaterText}>East River</Text>
+              <Text style={styles.mapWaterText}>Arabian Sea</Text>
             </View>
 
             {/* User Location Pulse Indicator */}
@@ -228,7 +272,7 @@ export default function ClinicsScreen() {
                     />
                   </View>
                   <View style={styles.pinLabelBox}>
-                    <Text style={styles.pinDistanceText}>{clinic.distance}</Text>
+                    <Text style={styles.pinDistanceText}>{clinic.distanceLabel}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -238,7 +282,7 @@ export default function ClinicsScreen() {
             <TouchableOpacity
               style={styles.recenterBtn}
               onPress={() => {
-                Alert.alert('Recenter', 'Map centered to your current location (New York, NY).');
+                Alert.alert('Recenter', `Map centered to your current location (${DEFAULT_USER_LOCATION.label}).`);
               }}
             >
               <Ionicons name="locate" size={20} color={Palette.primaryDark} />
@@ -256,7 +300,7 @@ export default function ClinicsScreen() {
                 </View>
                 <View style={styles.selectedDistanceBadge}>
                   <Ionicons name="navigate-circle" size={16} color={Palette.primary} />
-                  <Text style={styles.selectedDistanceText}>{selectedClinic.distance}</Text>
+                  <Text style={styles.selectedDistanceText}>{selectedClinic.distanceLabel}</Text>
                 </View>
               </View>
 
@@ -302,7 +346,8 @@ export default function ClinicsScreen() {
         >
           <View style={styles.listHeaderRow}>
             <Text style={styles.listCountText}>
-              Found {filteredClinics.length} accredited speech & language centers
+              Found {filteredClinics.length} speech & language centres · distances from{' '}
+              {DEFAULT_USER_LOCATION.label}
             </Text>
           </View>
 
@@ -320,7 +365,7 @@ export default function ClinicsScreen() {
                   </View>
                   <View style={styles.distanceBadge}>
                     <Ionicons name="location" size={14} color={Palette.primary} />
-                    <Text style={styles.distanceText}>{clinic.distance}</Text>
+                    <Text style={styles.distanceText}>{clinic.distanceLabel}</Text>
                   </View>
                 </View>
 
@@ -465,6 +510,26 @@ const styles = StyleSheet.create({
   typePillTextActive: {
     color: '#FFF',
     fontWeight: '700',
+  },
+  cityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Palette.secondary + '55',
+    backgroundColor: Palette.secondaryLight,
+  },
+  cityPillActive: {
+    backgroundColor: Palette.secondary,
+    borderColor: Palette.secondary,
+  },
+  cityPillText: {
+    fontSize: 12,
+    color: Palette.secondary,
+    fontWeight: '600',
   },
   listScrollContent: {
     padding: Spacing.four,

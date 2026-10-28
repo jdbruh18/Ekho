@@ -31,6 +31,7 @@ export default function SlpLayout() {
       <Stack.Screen name="sessions" />
       <Stack.Screen name="calendar" />
       <Stack.Screen name="earnings" />
+      <Stack.Screen name="verification" />
     </Stack>
   );
 }

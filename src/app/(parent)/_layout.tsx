@@ -16,6 +16,7 @@ export default function ParentLayout() {
       <Stack.Screen name="slp/[id]" />
       <Stack.Screen name="book-session" />
       <Stack.Screen name="appointments" />
+      <Stack.Screen name="home-practice" />
     </Stack>
   );
 }

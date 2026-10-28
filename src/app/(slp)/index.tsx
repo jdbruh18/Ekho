@@ -15,6 +15,8 @@ import {
 } from '@expo/vector-icons';
 import { Palette, Spacing, BorderRadius } from '../../constants/theme';
 import { useAuth } from '../../lib/auth-context';
+import { useEngagement } from '../../lib/engagement-store';
+import { formatINR } from '../../lib/currency';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -22,9 +24,12 @@ import { MOCK_APPOINTMENTS } from '../../lib/mock-data';
 
 export default function SlpDashboard() {
   const { profile, slpProfile, appointments, signOut } = useAuth();
+  const { credentials, threads } = useEngagement();
 
-  const isVerified = slpProfile?.is_verified ?? true;
-  const hourlyRate = slpProfile?.hourly_rate ?? 95.0;
+  const hasActionRequired = credentials.some((d) => d.status === 'action_required');
+  const isVerified = (slpProfile?.is_verified ?? true) && !hasActionRequired;
+  const hourlyRate = slpProfile?.hourly_rate ?? 1400;
+  const slpUnread = threads.reduce((n, t) => n + t.unreadForSlp, 0);
 
   const pendingAppointments = appointments.filter((a) => a.status === 'pending');
   const scheduledCount = appointments.filter((a) => a.status === 'scheduled').length;
@@ -56,30 +61,34 @@ export default function SlpDashboard() {
         showsVerticalScrollIndicator={false}
       >
         {/* Verification Status Card */}
+        <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/(slp)/verification')}>
         <Card style={styles.statusCard}>
           <View style={styles.statusHeader}>
             <View style={styles.statusLeft}>
               <MaterialCommunityIcons
-                name={isVerified ? 'check-decagram' : 'clock-outline'}
+                name={isVerified ? 'check-decagram' : hasActionRequired ? 'alert-circle-outline' : 'clock-outline'}
                 size={22}
-                color={isVerified ? Palette.success : Palette.warning}
+                color={isVerified ? Palette.success : hasActionRequired ? Palette.danger : Palette.warning}
               />
               <Text style={styles.statusTitle}>
-                {isVerified ? 'Verified SLP License' : 'Verification Under Review'}
+                {isVerified ? 'Verified SLP License' : hasActionRequired ? 'Documents Need Attention' : 'Verification Under Review'}
               </Text>
             </View>
             <Badge
-              label={isVerified ? 'Active & Listed' : 'Pending Approval'}
-              variant={isVerified ? 'success' : 'warning'}
+              label={isVerified ? 'Active & Listed' : hasActionRequired ? 'Action Required' : 'Pending Approval'}
+              variant={isVerified ? 'success' : hasActionRequired ? 'danger' : 'warning'}
               size="sm"
             />
           </View>
           <Text style={styles.statusDesc}>
             {isVerified
               ? 'Your credentials have been validated. You are eligible to receive parent bookings and conduct paid video therapy.'
-              : 'Our clinical board is verifying your state license and degree records. You can still set up your profile and schedule.'}
+              : hasActionRequired
+              ? 'A reviewer has requested a clearer copy of one document. Tap to view and resubmit.'
+              : 'Our clinical board is verifying your RCI registration and degree records. You can still set up your profile and schedule.'}
           </Text>
         </Card>
+        </TouchableOpacity>
 
         {/* Incoming Booking Requests Alert Banner */}
         {pendingAppointments.length > 0 && (
@@ -119,7 +128,7 @@ export default function SlpDashboard() {
             <Text style={styles.statLabel}>Active Clients</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>${hourlyRate}</Text>
+            <Text style={styles.statNumber}>{formatINR(hourlyRate)}</Text>
             <Text style={styles.statLabel}>Hourly Rate</Text>
           </View>
           <View style={styles.statBox}>
@@ -168,6 +177,18 @@ export default function SlpDashboard() {
               color={Palette.purple}
             />
             <Text style={styles.actionText}>SOAP Notes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/messages')}>
+            <Ionicons name="chatbubbles-outline" size={20} color={Palette.primaryDark} />
+            <Text style={styles.actionText}>
+              Messages{slpUnread > 0 ? ` (${slpUnread})` : ''}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(slp)/verification')}>
+            <MaterialCommunityIcons name="shield-check-outline" size={20} color={Palette.accent} />
+            <Text style={styles.actionText}>Credentials</Text>
           </TouchableOpacity>
         </View>
 

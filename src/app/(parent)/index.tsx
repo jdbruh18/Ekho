@@ -17,6 +17,7 @@ import {
 } from '@expo/vector-icons';
 import { Palette, Spacing, BorderRadius } from '../../constants/theme';
 import { useAuth } from '../../lib/auth-context';
+import { useEngagement } from '../../lib/engagement-store';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -128,6 +129,8 @@ const HOW_IT_WORKS_STEPS = [
 
 export default function ParentHomeScreen() {
   const { profile, children, activeChild, appointments, signOut } = useAuth();
+  const { threads } = useEngagement();
+  const unreadCount = threads.reduce((n, t) => n + t.unreadForParent, 0);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFaq, setExpandedFaq] = useState<string | null>('faq-1');
 
@@ -246,6 +249,27 @@ export default function ParentHomeScreen() {
                   <Text style={styles.childActionText}>Profiles</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+            <View style={engagementStyles.row}>
+              <TouchableOpacity
+                style={[styles.childActionPill, engagementStyles.pill]}
+                onPress={() => router.push('/(parent)/home-practice')}
+              >
+                <MaterialCommunityIcons name="fire" size={14} color={Palette.accent} />
+                <Text style={styles.childActionText}>Home Practice</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.childActionPill, engagementStyles.pill]}
+                onPress={() => router.push('/messages')}
+              >
+                <Ionicons name="chatbubbles-outline" size={14} color={Palette.primaryDark} />
+                <Text style={styles.childActionText}>Messages</Text>
+                {unreadCount > 0 && (
+                  <View style={engagementStyles.badge}>
+                    <Text style={engagementStyles.badgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </Card>
         )}
@@ -1101,4 +1125,20 @@ const styles = StyleSheet.create({
     borderTopColor: Palette.slate100,
     paddingTop: Spacing.two,
   },
+});
+
+const engagementStyles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  pill: { flex: 1, justifyContent: 'center' },
+  badge: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    backgroundColor: Palette.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  badgeText: { fontSize: 10, fontWeight: '800', color: Palette.white },
 });
